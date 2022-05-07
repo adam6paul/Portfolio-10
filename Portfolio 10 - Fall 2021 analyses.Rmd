@@ -1,0 +1,203 @@
+---
+title: "Portfolio 10 - Fall 2021 Analyses"
+author: "Adam"
+date: "5/6/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+>The goal of this portfolio is to run the analyses from my Fall 2021 project. Below is a bit more information about the study.
+
+The purpose of the study was to determine whether disclosure causally benefits students’ feelings of class and institutional belonging, their motivation, and their academic performance. To do this, I conducted a laboratory study designed to mimic an online course. Small groups comprised of 2-4 students from the same Introductory Psychology class were brought into the lab together to engage in a disclosure task with one another. 
+
+In the experimental condition, I used an abbreviated version of the Fast Friends protocol (Aron et al., 1997), which employs questions of increasing intimacy. This was contrasted with a control condition which used similar procedures but with “small talk” questions that are not expected to yield quality, intimate disclosure. To mimic the experience of an online class, conversations occurred virtually via Zoom.  Afterward, I measured students’ belonging, motivation, and performance. Finally, I had students take a brief quiz on research methods.
+
+
+
+### Set up
+
+Bringing in the packages I need.
+
+```{r bringing in packages, echo=TRUE, message=FALSE}
+library('psych')
+library('dplyr')
+library('reshape2')
+library('tidyverse')
+library('Rcpp')
+library('lme4')
+library('lmerTest')
+library('OpenMx')
+library('Hmisc')
+library('readr')
+library('emmeans')
+```
+
+
+### Bringing in the data
+
+#### Bringing in the data
+
+```{r loading data, echo=TRUE, collapse=TRUE, message=FALSE}
+study1 <- read_csv("Fall_2021_data_R_cleaned.csv")
+
+# Ensuring the dataframe is a tibble.
+as_tibble(study1)
+
+#Taking a look at the table.
+View(study1)
+```
+
+
+
+## Analyses!
+
+Dropping this explanation from my thesis prospectus of the analysis plan.
+
+>For each hypothesis, I will conduct a multi-level model with condition as a predictor and group as a random effect.  I will include the following covariates in all models: gender (dummy coded with female as the reference class), race (dummy coded with White as the reference class), number of group members known prior to the study, and number of classmates known prior to the study.
+
+I had three hypotheses:
+
+H1: Students in the disclosure condition will report greater belonging, at both the institutional and classroom levels, than students in the small talk condition.
+
+H2: Students in the disclosure condition will report greater subject area motivation than students in the small talk condition.
+
+H3: Students in the disclosure condition will have higher scores on the quiz than students in the small talk condition.
+
+
+### Preliminary analyses
+
+
+```{r ensuring condition is character vector}
+study1$condition <- as.character(study1$condition)
+
+study1$session <- as.character(study1$session)
+
+class(study1$condition)
+class(study1$session)
+```
+
+
+>Important note: 0 is fast-friends and 1 is control. Yeah, I know this is a bit backwards, but I inherited this mistake from my earlier self. Because of this, I am going to report the scores as the inverse of what is being output.
+
+#### Correlations
+
+The bivariate correlations for the variables of interest.
+
+```{r all conditions bivariate correlations}
+correlations <- study1 %>%
+        select(class_belong_comp4, school_belong_comp4, motiv_intrins_comp2, motiv_util_comp3)
+
+rcorr(as.matrix(correlations))
+    
+```
+
+class belonging and school belonging
+    r=.19, p=.01
+    
+class belonging and intrinsic motivation
+    r=.48, p<.001
+    
+class belonging and utility motivation
+    r=.40, p<.001
+    
+Utility motivation and intrinsic motivation
+    r=.68, p<.001.
+
+### Disclosure
+
+This is the measure of how much participants though the questions asked them to disclose.
+
+```{r disclose model}
+disclosure = lmer(manip_check_comp2 ~ condition + gender_male_dummy + race_black + race_asian + race_native + race_hispanic + know_prior_study + know_prior_class + (1| session), data = study1)
+
+summary(disclosure)
+```
+
+Students in the fast friends thought their questions asked them to disclose more (est= 1.00, SE=.097, p<.001). Which means that, in line with past research, the fast friends questions are more intimate questions.
+
+
+
+#### Self-disclosure
+
+```{r self disclosure model}
+self_disclosure = lmer(self_disclosure_comp4 ~ condition + gender_male_dummy + race_black + race_asian + race_native + race_hispanic + know_prior_study + know_prior_class + (1| session), data = study1, REML=FALSE)
+
+summary(self_disclosure)
+```
+
+Participants did not report disclosing more in the fast friends condition (est=.11, SE=.087, p=.21). We believed that this was because the level of disclosure in the small talk condition was still more than they were used to. Without knowing there was another, 'deeper' disclosure condition; they may also have thought they were disclosing very intimately.
+
+
+
+#### Group disclosure
+
+```{r group disclosure model}
+group_disclosure = lmer(group_disclosure_comp4 ~ condition + gender_male_dummy + race_black + race_asian + race_native + race_hispanic + know_prior_study + know_prior_class + (1| session), data = study1, REML=FALSE)
+
+summary(group_disclosure)
+```
+
+There was a marginal difference between conditions, such that participants reported higher disclosure by their group in the fast friends condition (est=.13, SE=.072, p=.087). Being female also predicted reporting your group disclosed more (est=.23, SE=.07, p=.002).
+
+This was a really interesting finding to us, because it suggests that the participants did notice a difference in their partner's disclosure, but rated their own disclosure equally intimate across conditions.
+
+
+#### Class belonging
+
+```{r class belonging model}
+class_belong_model = lmer(class_belong_comp4 ~ condition + gender_male_dummy + race_black + race_asian + race_native + race_hispanic + know_prior_study + know_prior_class + (1| session), data = study1, REML=FALSE)
+
+summary(class_belong_model)
+```
+
+There was not a significant effect of condition. We believed that this was likely because the experiment was not connected enough to class, and as such, had no impact on belonging. Changing this was the goal of my thesis study 2, by changing from Fast Friends to a task more associated with class. We ultimately concluded that we really need to embed the task within a class to see the effects we're looking for.
+
+
+
+#### Institutional belonging
+
+```{r school belonging model}
+school_belong_model = lmer(school_belong_comp4 ~ condition + gender_male_dummy + race_black + race_asian + race_native + race_hispanic + know_prior_study + know_prior_class + (1| session), data = study1, REML=FALSE)
+
+summary(school_belong_model)
+```
+
+We found no significant difference between the conditions on institutional belonging. But we did find that Asian students and Hispanic students were reporting lower belonging. The finding for Asian students is one we have seen across multiple studies now, so we are interested in looking at how our intervention may influence Asian students uniquely.
+
+
+
+### Subject Area Motivation
+
+
+#### Intrinsic motivation
+
+```{r intrinsic motivation model}
+motiv_intrins = lmer(motiv_intrins_comp2 ~ condition + gender_male_dummy + race_black + race_asian + race_native + race_hispanic + know_prior_study + know_prior_class + (1| session), data = study1, REML=FALSE)
+
+summary(motiv_intrins)
+```
+
+We found no effect on intrinsic motivation based on the conditions, though women reported significantly lower intrinsic motivation.
+
+
+
+#### Utility motivation
+
+```{r utility motivation model}
+util_intrins = lmer(motiv_util_comp3 ~ condition + gender_male_dummy + race_black + race_asian + race_native + race_hispanic + know_prior_study + know_prior_class + (1| session), data = study1, REML=FALSE)
+
+summary(util_intrins)
+```
+
+There was not a significant effect of condition on utility motivation, though like intrinsic motivation women reported statistically significantly lower utility motivation than men.
+
+
+
+## Finishing up
+
+There were a lot of problems with this study. In particular, we failed to manipulate disclosure in the way we expected, and we believe that students failed to connect the task with their classes. This is why we went on to run the two studies that made up my thesis.
+
+
